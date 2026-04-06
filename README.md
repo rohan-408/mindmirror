@@ -124,7 +124,7 @@ The single entry point for the entire application. It handles:
 - Calling Gemini with the retrieved context and printing the answer
 
 ### `mind_mirror_config.env`
-A local environment file that stores your credentials securely. It is never meant to be committed to version control. Add it to your `.gitignore`. It contains your PostgreSQL connection details, Google Gemini API key, and the path to your diary directory.
+A local environment file that stores your credentials securely.
 
 ---
 
