@@ -13,16 +13,21 @@ import os
 from dotenv import load_dotenv
 
 ## Update the name of directory in which those content are stored
-personal_diary_dir = '/home/rohan/Documents/rohan_diary_contents'
+personal_diary_dir = 'Path/ to /your/diary files'  # Add your diary files directory
+print("Trying to use diary in: {}.\nChecking if it exists...".format(personal_diary_dir))
 ## checking if it exists
-if Path(personal_diary_dir).exists():
-    print("Ok, this directory exists")
-else:
-    print("Cannot find this directory, please enter a valid directory")
+while True:
+    if Path(personal_diary_dir).exists():
+        print("Ok, this directory exists")
+        break
+    else:
+        print("Cannot find this directory, please enter a valid directory")
+        personal_diary_dir = input("Enter a Valid directory: ")
+    
 
 # Filling in new values to our Vector DB
 ## Connecting to PostgreSQL DB
-load_dotenv(dotenv_path='/home/rohan/Documents/Coding/mind_mirror_config.env')  # Loading database credentials saved in .env file
+load_dotenv(dotenv_path='mind_mirror_config.env')  # Loading database credentials saved in .env file
 db_config = {
     "host": os.getenv('host'),
     "database": os.getenv('database'),
@@ -124,12 +129,20 @@ try:
 except:
     user_name = "User"  # If not fetched, we would use this default name.
 
-matching_contents = [i[2] for i in similar_rows]  # this would have list of matched chunks of data from DB
+matching_contents = ["As on : "+str(i[1]) + "; " + i[2] for i in similar_rows]  # this would have list of matched chunks of data from DB, with dates
+
 prompt = """Based on the following snippets from {}'s career: {}.
 Answer the following question: {}.
 start responding by greeting me. Your answer should always be on the point, short (like 2-3 paragraphs) easy to understand. Avoid using jargons""".format(user_name,matching_contents,query)
-response = client.models.generate_content(
-    model="gemini-3-flash-preview",
-    contents=prompt
-)
-print(response.text)
+
+try:
+    response = client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=prompt
+    )
+    print(response.text)
+except:
+    print("There was some problem connecting to LLM. But below are the 5 most similar chunks from your database:")
+    for i in matching_contents:
+        print(i)
+        print("####")
