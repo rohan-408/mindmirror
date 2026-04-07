@@ -87,7 +87,7 @@ Your Journal Files
 [A] AUGMENTED — The question + retrieved chunks are combined into a structured prompt
       │
       ▼
-[G] GENERATION — Google Gemini reads the prompt and generates a natural language answer
+[G] GENERATION — (Optional) Google Gemini reads the prompt and generates a natural language answer.
       │
       ▼
   Answer printed to terminal
@@ -99,7 +99,7 @@ Your Journal Files
 
 **[A] Augmented** — Those retrieved chunks are injected into a prompt alongside the original question. The LLM is not asked to answer from memory or general knowledge; it is given the actual relevant context from your own journal. This grounds the answer in your real data and prevents hallucination.
 
-**[G] Generation** — Google Gemini reads the enriched prompt and produces a coherent, summarised answer. Since it is reading your own words, it can identify patterns, summarise learnings, and connect dots across multiple diary entries spanning months or years.
+**[G] Generation** — Google Gemini reads the enriched prompt and produces a coherent, summarised answer. Since it is reading your own words, it can identify patterns, summarise learnings, and connect dots across multiple diary entries spanning months or years. It is set to optional now. If user wants to privately search the database, it simply outputs the top 5 most similar chunks of data without calling the API.
 
 ---
 
