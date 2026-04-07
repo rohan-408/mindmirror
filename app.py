@@ -13,7 +13,7 @@ import os
 from dotenv import load_dotenv
 
 ## Update the name of directory in which those content are stored
-personal_diary_dir = 'Path/ to /your/diary files'  # Add your diary files directory
+personal_diary_dir = 'directory/ name/ where /diary /files /are /saved'
 print("Trying to use diary in: {}.\nChecking if it exists...".format(personal_diary_dir))
 ## checking if it exists
 while True:
@@ -27,7 +27,7 @@ while True:
 
 # Filling in new values to our Vector DB
 ## Connecting to PostgreSQL DB
-load_dotenv(dotenv_path='mind_mirror_config.env')  # Loading database credentials saved in .env file
+load_dotenv(dotenv_path='path/ to /mind_mirror_config.env')  # Loading database credentials saved in .env file
 db_config = {
     "host": os.getenv('host'),
     "database": os.getenv('database'),
@@ -92,16 +92,13 @@ if len(diary_dates) > 0:
 # Pushing the data to our local Postgres DB
 ## Ensuring pgvector extension is enabled
 if len(diary_dates) > 0:
+    print("Updating the new values to the DB")
     cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
     
     insert_query = "insert into personal_diary (created_at, content, embeddings) values %s"
     values = list(zip(processed_dates, processed_data, processed_embeddings))
     
     execute_values(cur, insert_query, values)
-    
-    conn.commit()
-    cur.close()
-    conn.close()
 
 # Doing query search to our vector DB
 query = input("Enter the question or query you want to search: ")
@@ -135,14 +132,33 @@ prompt = """Based on the following snippets from {}'s career: {}.
 Answer the following question: {}.
 start responding by greeting me. Your answer should always be on the point, short (like 2-3 paragraphs) easy to understand. Avoid using jargons""".format(user_name,matching_contents,query)
 
+## Giving an option to directly display matching chunks from DB without using Google API (for Privacy)
+while True:
+    user_inp = input("Want to use Google gemini for answering the query? (Y/n): ")
+    if user_inp.lower() == 'y':
+        break
+    elif user_inp.lower() == 'n':
+        for i in matching_contents:
+            print(i)
+            print("####")
+        break
+    else:
+        print("Try again..")
+
+# Trying to connect to Google API
 try:
-    response = client.models.generate_content(
-        model="gemini-3-flash-preview",
-        contents=prompt
-    )
-    print(response.text)
-except:
+    if user_inp.lower() == 'y':
+        response = client.models.generate_content(
+            model="gemini-3-flash-preview",
+            contents=prompt
+        )
+        print(response.text)
+except:  # In case of error, we would display top 5 matching chunks from DB
     print("There was some problem connecting to LLM. But below are the 5 most similar chunks from your database:")
     for i in matching_contents:
         print(i)
         print("####")
+
+conn.commit()
+cur.close()
+conn.close()
