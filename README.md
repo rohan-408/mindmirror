@@ -5,6 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://python.org)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-336791)](https://github.com/pgvector/pgvector)
 [![Google Gemini](https://img.shields.io/badge/LLM-Google%20Gemini-orange)](https://aistudio.google.com)
+[![Ollama](https://img.shields.io/badge/LLM-Ollama%20(local)-black)](https://ollama.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
@@ -20,6 +21,7 @@
 - [Step 2 — Install Required Packages](#step-2--install-required-packages)
 - [Step 3 — Set Up PostgreSQL with pgvector](#step-3--set-up-postgresql-with-pgvector)
 - [Step 4 — Get Your Google Gemini API Key](#step-4--get-your-google-gemini-api-key)
+- [Step 4 (Alternative) — Set Up Ollama for Local LLM](#step-4-alternative--set-up-ollama-for-local-llm)
 - [Step 5 — Configure the .env File](#step-5--configure-the-env-file)
 - [Step 6 — Running the App](#step-6--running-the-app)
 - [Example Queries](#-example-queries)
@@ -139,6 +141,7 @@ Before you begin, make sure the following are installed on your system:
 | pip | Latest | Comes with Python |
 | Git | Any | For cloning the repo |
 | Internet connection | — | For Gemini API calls and first-time model download |
+| Ollama | Latest | **Optional** — only needed if you want to use a local LLM instead of Gemini |
 
 ---
 
@@ -197,12 +200,14 @@ pip install numpy
 pip install langchain-experimental
 pip install langchain-huggingface
 pip install sentence-transformers
+pip install python-dotenv
+pip install requests
 ```
 
 Or install them all in a single command:
 
 ```bash
-pip install google-genai psycopg2-binary pandas numpy langchain-experimental langchain-huggingface sentence-transformers
+pip install google-genai psycopg2-binary pandas numpy langchain-experimental langchain-huggingface sentence-transformers python-dotenv requests
 ```
 
 ### What Each Package Does
@@ -216,6 +221,8 @@ pip install google-genai psycopg2-binary pandas numpy langchain-experimental lan
 | `langchain-experimental` | Provides `SemanticChunker` for splitting text by meaning rather than fixed size |
 | `langchain-huggingface` | Bridges LangChain with HuggingFace embedding models |
 | `sentence-transformers` | Runs the `all-MiniLM-L6-v2` model locally to generate 384-dimensional embeddings |
+| `python-dotenv` | Loads your credentials from the `.env` config file into the script |
+| `requests` | Used to communicate with the local Ollama API server when using local LLMs |
 
 > 📝 The `all-MiniLM-L6-v2` embedding model (~90MB) is downloaded automatically the first time you run the app. After that it is cached locally. **Your journal text never leaves your machine during the embedding step** — this model runs 100% offline.
 
@@ -366,7 +373,93 @@ MindMirror uses Google Gemini as its language model to generate natural language
 
 ---
 
-## Step 5 — Configure the .env File
+## Step 4 (Alternative) — Set Up Ollama for Local LLM
+
+If you prefer to keep everything fully offline and on your own machine — no API keys, no cloud calls — you can use **Ollama** to run an LLM locally instead of Gemini. This step is completely optional; skip it if you are happy using Gemini.
+
+### What is Ollama?
+
+Ollama is a tool that lets you download and run open-source LLMs (like Llama, Mistral, Gemma, Phi, etc.) directly on your computer. Once running, it exposes a local API that MindMirror can talk to — no internet connection needed for the answer generation step.
+
+---
+
+### 4a — Install Ollama
+
+#### Windows
+
+1. Go to **[https://ollama.com/download](https://ollama.com/download)** and download the Windows installer (`.exe`).
+2. Run the installer and follow the on-screen prompts.
+3. Once installed, Ollama runs automatically as a background service. You can verify it is running by opening a browser and navigating to `http://localhost:11434` — you should see a plain text response.
+
+#### Linux
+
+Run the official one-line install script in your terminal:
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+After installation, start and enable the service so it starts automatically on boot:
+
+```bash
+sudo systemctl start ollama
+sudo systemctl enable ollama
+```
+
+Verify it is running:
+
+```bash
+curl http://localhost:11434
+# Expected output: Ollama is running
+```
+
+---
+
+### 4b — Choosing the Right Model
+
+Since MindMirror only needs the LLM to **read some text snippets and answer a question**, you do not need a massive model. You need a **text-only (instruct/chat) model** — no image, audio, or code-specialised models are required.
+
+Use this guide to pick based on your system:
+
+| Your System | Recommended Model | Why |
+|---|---|---|
+| 8 GB RAM, no GPU | `tinyllama` or `phi3:mini` | Very small, fast on CPU, good enough for Q&A |
+| 16 GB RAM, no GPU | `mistral` or `llama3.2:3b` | Good quality answers, manageable speed on CPU |
+| 16 GB RAM + GPU (4–8 GB VRAM) | `llama3.2` or `gemma2:9b` | Runs on GPU, noticeably faster |
+| 32 GB RAM + GPU (8+ GB VRAM) | `llama3.1:8b` or `gemma2:9b` | High quality, comfortable speed |
+
+> 💡 **Key rule:** Choose a model where its size (in GB) is comfortably less than your available RAM. For example, if you have 16 GB RAM, a 7–8 GB model works well. Avoid going above ~50–60% of your RAM or the system will slow to a crawl due to swapping.
+
+> 📝 **Text-only matters:** Stick to standard instruct/chat variants (e.g. `mistral`, `llama3.2`, `phi3`). Avoid variants labelled `:vision`, `:code`, or `:multimodal` — they are larger and offer no advantage here.
+
+---
+
+### 4c — Download a Model
+
+Once Ollama is installed, pull your chosen model using the `ollama pull` command. For example:
+
+```bash
+# A lightweight option for low-spec machines
+ollama pull phi3:mini
+
+# A solid mid-range option
+ollama pull mistral
+
+# A higher-quality option for well-specced machines
+ollama pull llama3.2
+```
+
+You can browse all available models at **[https://ollama.com/library](https://ollama.com/library)**. Look for models tagged `instruct` or `chat`.
+
+To see which models you have already downloaded:
+
+```bash
+ollama list
+```
+
+---
+
+
 
 In your project folder, create a file named exactly `mind_mirror_config.env`. Open it in any text editor and fill it in as follows:
 
@@ -408,11 +501,61 @@ echo "mind_mirror_config.env" >> .gitignore
 
 ## Step 6 — Running the App
 
+The startup steps differ slightly depending on whether you are using **Gemini** (cloud) or **Ollama** (local LLM). Follow the appropriate path below.
+
+---
+
+### Option A — Running with Google Gemini
+
 Make sure your virtual environment is activated and PostgreSQL is running, then simply run:
 
 ```bash
 python3 app.py
 ```
+
+---
+
+### Option B — Running with Ollama (Local LLM)
+
+When using Ollama, you need to ensure the Ollama service is running before launching the script. Follow these steps in order:
+
+#### On Linux
+
+```bash
+# Step 1 — Activate your Python virtual environment
+source venv/bin/activate
+
+# Step 2 — Start the Ollama service (if not already running)
+sudo systemctl start ollama
+
+# Step 3 — Navigate to your project directory
+cd /path/to/mindmirror
+
+# Step 4 — Run the script
+python3 app.py
+```
+
+#### On Windows
+
+```cmd
+:: Step 1 — Activate your Python virtual environment
+venv\Scripts\activate
+
+:: Step 2 — Start the Ollama server in a separate Command Prompt window
+ollama serve
+
+:: Step 3 — In your original window, navigate to your project directory
+cd C:\path\to\mindmirror
+
+:: Step 4 — Run the script
+python app.py
+```
+
+> 💡 On Windows, `ollama serve` needs to stay running in its own terminal window while you use MindMirror. Do not close it. On Linux, the `systemctl` service runs in the background, so no separate window is needed.
+
+When prompted by the script, type `O` to select Ollama, then choose from your list of locally installed models.
+
+---
 
 ### What Happens on First Run
 
@@ -486,7 +629,8 @@ MindMirror is built with privacy as a first principle:
 
 - All vector embeddings are generated **locally** using a HuggingFace model. Your journal text never leaves your machine for the embedding step.
 - Your diary content is stored only in your **local PostgreSQL database** on your own system.
-- The **only external network call** is to the Google Gemini API, which receives only the top 5 retrieved chunks (not your entire journal) along with your question to generate an answer.
+- If you use **Google Gemini**, the only external network call is to the Gemini API, which receives only the top 5 retrieved chunks (not your entire journal) along with your question to generate an answer.
+- If you use **Ollama**, there are **zero external network calls at all**. The entire pipeline — embeddings, vector search, and answer generation — runs 100% on your machine. Nothing ever leaves your system.
 - No usage data, telemetry, or personal information is collected by this project.
 
 ---
